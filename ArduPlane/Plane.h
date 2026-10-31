@@ -585,6 +585,10 @@ private:
         float forced_throttle;
         uint32_t last_forced_throttle_ms;
 
+        // flap commanded from external controller in percent (savasan: MAV_CMD_USER_1)
+        int8_t forced_flap_pct;
+        uint32_t last_forced_flap_ms;
+
 #if AP_PLANE_OFFBOARD_GUIDED_SLEW_ENABLED
         // airspeed adjustments
         float target_airspeed_cm = -1;  // don't default to zero here, as zero is a valid speed.
