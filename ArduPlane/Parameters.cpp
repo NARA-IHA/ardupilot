@@ -987,6 +987,10 @@ const AP_Param::Info Plane::var_info[] = {
     GOBJECT(_gcs,           "MAV",  GCS),
 #endif
 
+    // @Group: SVS_
+    // @Path: savasan.cpp
+    GOBJECT(savasan, "SVS_", Savasan),
+
     AP_VAREND
 };
 

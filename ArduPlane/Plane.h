@@ -124,6 +124,7 @@
 #include "AP_Arming_Plane.h"
 #include "pullup.h"
 #include "systemid.h"
+#include "savasan.h"
 
 /*
   main APM:Plane class
@@ -176,6 +177,7 @@ public:
     friend class ModeLoiterAltQLand;
 #if MODE_AUTOLAND_ENABLED
     friend class ModeAutoLand;
+    friend class Savasan;
 #endif
 #if AP_EXTERNAL_CONTROL_ENABLED
     friend class AP_ExternalControl_Plane;
@@ -335,6 +337,9 @@ private:
 #if HAL_SOARING_ENABLED
     ModeThermal mode_thermal;
 #endif
+
+    // NARA-IHA additions (savasan.h)
+    Savasan savasan;
 
 #if AP_QUICKTUNE_ENABLED
     AP_Quicktune quicktune;
@@ -584,10 +589,6 @@ private:
         // throttle  commanded from external controller in percent
         float forced_throttle;
         uint32_t last_forced_throttle_ms;
-
-        // flap commanded from external controller in percent (savasan: MAV_CMD_USER_1)
-        int8_t forced_flap_pct;
-        uint32_t last_forced_flap_ms;
 
 #if AP_PLANE_OFFBOARD_GUIDED_SLEW_ENABLED
         // airspeed adjustments

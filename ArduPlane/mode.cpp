@@ -54,7 +54,7 @@ bool Mode::enter()
     // reset external attitude guidance
     plane.guided_state.last_forced_rpy_ms.zero();
     plane.guided_state.last_forced_throttle_ms = 0;
-    plane.guided_state.last_forced_flap_ms = 0;
+    plane.savasan.clear_flap_request();
 
 #if AP_PLANE_OFFBOARD_GUIDED_SLEW_ENABLED
     plane.guided_state.target_heading = -4; // radians here are in range -3.14 to 3.14, so a default value needs to be outside that range

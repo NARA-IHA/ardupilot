@@ -795,8 +795,11 @@ MAV_RESULT GCS_MAVLINK_Plane::handle_command_int_packet(const mavlink_command_in
     case MAV_CMD_DO_CHANGE_SPEED:
         return handle_command_DO_CHANGE_SPEED(packet);
 
+    // NARA-IHA (savasan.h)
     case MAV_CMD_USER_1:
-        return handle_command_int_guided_flap(packet);
+        return plane.savasan.handle_flap_request(packet.param1);
+    case MAV_CMD_USER_2:
+        return plane.savasan.handle_ground_test(packet.param1);
 
 #if HAL_PARACHUTE_ENABLED
     case MAV_CMD_DO_PARACHUTE:
@@ -866,26 +869,6 @@ MAV_RESULT GCS_MAVLINK_Plane::handle_command_int_packet(const mavlink_command_in
     default:
         return GCS_MAVLINK::handle_command_int_packet(packet, msg);
     }
-}
-
-/*
-  savasan: flap/airbrake request from the companion computer in GUIDED.
-  param1: flap input 0..1 (same scale as the RC flap channel, so with
-  DSPOILER crow the upper half also raises the ailerons). Like external
-  attitude targets it lapses after GUIDED_TIMEOUT and is cleared on mode
-  change; the pilot's flap channel and auto flaps still apply (larger wins).
- */
-MAV_RESULT GCS_MAVLINK_Plane::handle_command_int_guided_flap(const mavlink_command_int_t &packet)
-{
-    if (plane.control_mode != &plane.mode_guided) {
-        return MAV_RESULT_DENIED;
-    }
-    if (isnan(packet.param1)) {
-        return MAV_RESULT_DENIED;
-    }
-    plane.guided_state.forced_flap_pct = constrain_float(packet.param1, 0, 1) * 100;
-    plane.guided_state.last_forced_flap_ms = AP_HAL::millis();
-    return MAV_RESULT_ACCEPTED;
 }
 
 MAV_RESULT GCS_MAVLINK_Plane::handle_command_DO_CHANGE_SPEED(const mavlink_command_int_t &packet)
@@ -1038,6 +1021,11 @@ void GCS_MAVLINK_Plane::handle_manual_control_axes(const mavlink_manual_control_
 void GCS_MAVLINK_Plane::handle_message(const mavlink_message_t &msg)
 {
     switch (msg.msgid) {
+
+    case MAVLINK_MSG_ID_HEARTBEAT:
+        plane.savasan.handle_heartbeat(msg);   // NARA-IHA companion watchdog
+        GCS_MAVLINK::handle_message(msg);
+        break;
 
     case MAVLINK_MSG_ID_SET_ATTITUDE_TARGET:
         handle_set_attitude_target(msg);

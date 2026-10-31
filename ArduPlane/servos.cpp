@@ -745,12 +745,8 @@ void Plane::set_servos_flaps(void)
         }
     }
 
-    // flap requested by the companion computer in GUIDED (savasan)
-    if (control_mode == &mode_guided &&
-        guided_state.last_forced_flap_ms > 0 &&
-        AP_HAL::millis() - guided_state.last_forced_flap_ms < g2.guided_timeout*1000.0f) {
-        auto_flap_percent = MAX(auto_flap_percent, guided_state.forced_flap_pct);
-    }
+    // NARA-IHA: companion request, overspeed airbrake, ground test
+    auto_flap_percent = MAX(auto_flap_percent, savasan.flap_percent());
 
     // manual flap input overrides auto flap input
     if (abs(manual_flap_percent) > auto_flap_percent) {

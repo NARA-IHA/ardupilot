@@ -144,6 +144,7 @@ const AP_Scheduler::Task Plane::scheduler_tasks[] = {
 #if AP_QUICKTUNE_ENABLED
     SCHED_TASK(update_quicktune, 40, 100, 163),
 #endif
+    SCHED_TASK_CLASS(Savasan, &plane.savasan, update, 10, 100, 165),
 };
 
 void Plane::get_scheduler_tasks(const AP_Scheduler::Task *&tasks,
