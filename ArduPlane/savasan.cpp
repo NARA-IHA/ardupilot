@@ -56,11 +56,25 @@ const AP_Param::GroupInfo Savasan::var_info[] = {
 
     // @Param: CC_RTL
     // @DisplayName: Companion loss RTL delay
-    // @Description: If the companion link stays lost this long while in GUIDED, switch to RTL (GUIDED alone already loiters after GUIDED_TIMEOUT). Once per loss; selecting GUIDED again is left to the pilot. 0 disables.
+    // @Description: If the companion link stays lost this long while in GUIDED, switch to RTL (GUIDED alone already loiters after GUIDED_TIMEOUT, at the safe fallback point the companion keeps sending). Once per loss; selecting GUIDED again is left to the pilot. 0 disables (default: RTL flies straight home and may cross no-fly zones the autopilot does not know).
     // @Units: s
     // @Range: 0 120
     // @User: Advanced
-    AP_GROUPINFO("CC_RTL", 6, Savasan, cc_rtl, 20),
+    AP_GROUPINFO("CC_RTL", 6, Savasan, cc_rtl, 0),
+
+    // @Param: ARM_JTSN
+    // @DisplayName: Require companion to arm
+    // @Description: Refuse arming (auxiliary authorisation, part of ARMING_CHECK) unless the companion computer heartbeat is present and reports MAV_STATE_ACTIVE (boundary loaded, camera running).
+    // @Values: 0:Disabled,1:Enabled
+    // @User: Advanced
+    AP_GROUPINFO("ARM_JTSN", 7, Savasan, arm_jtsn, 1),
+
+    // @Param: FORK
+    // @DisplayName: NARA-IHA firmware marker
+    // @Description: Present only in NARA-IHA/ardupilot firmware; the stock-firmware script savasan.lua (same SVS_ parameters) disables itself when it sees it. Not to be changed.
+    // @ReadOnly: True
+    // @User: Advanced
+    AP_GROUPINFO("FORK", 8, Savasan, fork, 1),
 
     AP_GROUPEND
 };
@@ -118,6 +132,9 @@ MAV_RESULT Savasan::handle_ground_test(float start)
         gcs().send_text(MAV_SEVERITY_WARNING, "SVS test: once disarm");
         return MAV_RESULT_DENIED;
     }
+    if (test_step != 0) {
+        return MAV_RESULT_ACCEPTED;     // already running (repeated command)
+    }
     test_step = 1;
     test_step_ms = AP_HAL::millis();
     gcs().send_text(MAV_SEVERITY_INFO, "%s", test_steps[0].text);
@@ -134,6 +151,7 @@ void Savasan::handle_heartbeat(const mavlink_message_t &msg)
         lost_ms = 0;
     }
     rtl_done = false;
+    ready = mavlink_msg_heartbeat_get_system_status(&msg) == MAV_STATE_ACTIVE;
     hb_ms = AP_HAL::millis();
 }
 
@@ -147,6 +165,7 @@ void Savasan::update_companion(uint32_t now)
             return;
         }
         lost_ms = now;
+        ready = false;
         clear_flap_request();
         gcs().send_text(MAV_SEVERITY_CRITICAL, "SVS: JETSON KOPTU");
     }
@@ -181,11 +200,33 @@ void Savasan::update_ground_test(uint32_t now)
     test_step++;
 }
 
+void Savasan::update_prearm()
+{
+#if AP_ARMING_AUX_AUTH_ENABLED
+    if (!have_auth_id) {
+        have_auth_id = plane.arming.get_aux_auth_id(auth_id);
+        if (!have_auth_id) {
+            return;
+        }
+    }
+    if (arm_jtsn <= 0) {
+        plane.arming.set_aux_auth_passed(auth_id);
+    } else if (hb_ms == 0 || lost_ms != 0) {
+        plane.arming.set_aux_auth_failed(auth_id, "SVS: Jetson yok");
+    } else if (!ready) {
+        plane.arming.set_aux_auth_failed(auth_id, "SVS: Jetson hazir degil");
+    } else {
+        plane.arming.set_aux_auth_passed(auth_id);
+    }
+#endif
+}
+
 void Savasan::update()
 {
     const uint32_t now = AP_HAL::millis();
     update_companion(now);
     update_ground_test(now);
+    update_prearm();
     log();
 }
 

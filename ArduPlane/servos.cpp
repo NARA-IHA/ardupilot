@@ -289,7 +289,15 @@ void Plane::dspoiler_update(void)
           spoilers to both wings. Get flap percentage from k_flap_auto, which is set
           in set_servos_flaps() as the maximum of manual and auto flap control
          */
-        const float flap_percent = SRV_Channels::get_slew_limited_output_scaled(SRV_Channel::k_flap_auto);
+        float flap_percent = SRV_Channels::get_slew_limited_output_scaled(SRV_Channel::k_flap_auto);
+#if AP_ADVANCEDFAILSAFE_ENABLED
+        // NARA-IHA: termination deploys full flap; with progressive crow that
+        // would also raise both ailerons and halve the full-aileron command.
+        // Keep the flaps, drop the crow part.
+        if (progressive_crow && afs.should_crash_vehicle()) {
+            flap_percent = MIN(flap_percent, 50);
+        }
+#endif
 
         if (is_positive(flap_percent)) {
             float inner_flap_scaled = flap_percent;
